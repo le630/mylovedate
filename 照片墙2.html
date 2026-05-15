@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>照片墙</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      min-height: 100vh;
+      background: linear-gradient(to bottom, #f0f0f0, #c8f0e0);
+      overflow: hidden;
+      font-family: sans-serif;
+      touch-action: none;
+    }
+
+    .photo-wall {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .photo {
+      position: absolute;
+      background: white;
+      padding: 2px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      cursor: grab;
+      user-select: none;
+      transform-origin: center center;
+      touch-action: none;
+      /* 初始状态：透明且缩小，旋转由各自CSS变量控制 */
+      opacity: 0;
+      transform: var(--rotate) scale(0.8);
+      transition: opacity 0.5s ease, transform 0.5s ease;
+      will-change: transform, opacity;
+    }
+
+    /* 显示状态：完全可见，缩放恢复为1，旋转保持不变 */
+    .photo.visible {
+      opacity: 1;
+      transform: var(--rotate) scale(1);
+    }
+
+    .photo-inner {
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .photo:hover .photo-inner {
+      transform: scale(1.5);
+    }
+
+    .photo:active .photo-inner {
+      transform: scale(1.52);
+    }
+
+    .photo:hover {
+      box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+    }
+
+    .photo img {
+      display: block;
+      width: 100%;
+      height: auto;
+      pointer-events: none;
+    }
+
+    /* 全屏放大灯箱 */
+    .lightbox {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.9);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+      touch-action: manipulation;
+    }
+
+    .lightbox img {
+      width: 100vw;
+      height: 100vh;
+      object-fit: contain;
+    }
+
+    .lightbox.active {
+      display: flex;
+    }
+
+    /* ===== 保持原有所有照片尺寸 ===== */
+    .ph1 { width: 188px; }
+    .ph2 { width: 197px; }
+    .ph3 { width: 177px; }
+    .ph4 { width: 125px; }
+    .ph5 { width: 222px; }
+    .ph6 { width: 147px; }
+    .ph7 { width: 200px; }
+    .ph8 { width: 135px; }
+    .ph9 { width: 155px; }
+    .ph10 { width: 190px; }
+    .ph11 { width: 185px; }
+    .ph12 { width: 175px; }
+    .ph13 { width: 155px; }
+    .ph14 { width: 195px; }
+    .ph15 { width: 165px; }
+    .ph16 { width: 175px; }
+    .ph17 { width: 176px; }
+    .ph18 { width: 185px; }
+    .ph19 { width: 185px; }
+    .ph20 { width: 205px; }
+
+    /* 旋转角度定义为CSS变量，不再直接写在transform里 */
+    .ph1 { --rotate: rotate(-6deg); }
+    .ph2 { --rotate: rotate(4deg); }
+    .ph3 { --rotate: rotate(9deg); }
+    .ph4 { --rotate: rotate(8deg); }
+    .ph5 { --rotate: rotate(2deg); }
+    .ph6 { --rotate: rotate(2deg); }
+    .ph7 { --rotate: rotate(15deg); }
+    .ph8 { --rotate: rotate(-15deg); }
+    .ph9 { --rotate: rotate(-9deg); }
+    .ph10 { --rotate: rotate(6deg); }
+    .ph11 { --rotate: rotate(4deg); }
+    .ph12 { --rotate: rotate(23deg); }
+    .ph13 { --rotate: rotate(-44deg); }
+    .ph14 { --rotate: rotate(-32deg); }
+    .ph15 { --rotate: rotate(17deg); }
+    .ph16 { --rotate: rotate(2deg); }
+    .ph17 { --rotate: rotate(41deg); }
+    .ph18 { --rotate: rotate(35deg); }
+    .ph19 { --rotate: rotate(-33deg); }
+    .ph20 { --rotate: rotate(-20deg); }
+
+    /* 手机小屏优化 */
+    @media (max-width: 420px) {
+      .ph1 { width: 99px; }
+      .ph2 { width: 96px; }
+      .ph3 { width: 112px; }
+      .ph4 { width: 100px; }
+      .ph5 { width: 88px; }
+      .ph6 { width: 118px; }
+      .ph7 { width: 90px; }
+      .ph8 { width: 108px; }
+      .ph9 { width: 94px; }
+      .ph10 { width: 92px; }
+      .ph11 { width: 98px; }
+      .ph12 { width: 80px; }
+      .ph13 { width: 94px; }
+      .ph14 { width: 96px; }
+      .ph15 { width: 89px; }
+      .ph16 { width: 90px; }
+      .ph17 { width: 91px; }
+      .ph18 { width: 86px; }
+      .ph19 { width: 98px; }
+      .ph20 { width: 94px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="photo-wall" id="wall">
+    <!-- 20张照片，图片路径保持不变 -->
+    <div class="photo ph1" data-id="photo1"><div class="photo-inner"><img src="https://cdn.jsdelivr.net/gh/le630/mylovedate@main/01_new.jpg" alt="照片1"></div></div>
+    <div class="photo ph2" data-id="photo2"><div class="photo-inner"><img src="https://cdn.jsdelivr.net/gh/le630/mylovedate@main/02_new.jpg" alt="照片2"></div></div>
+    <div class="photo ph3" data-id="photo3"><div class="photo-inner"><img src="https://cdn.jsdelivr.net/gh/le630/mylovedate@main/03_new.jpg" alt="照片3"></div></div>
+    <div class="photo ph4" data-id="photo4"><div class="photo-inner"><img src="https://cdn.jsdelivr.net/gh/le630/mylovedate@main/04_new.jpg" alt="照片4"></div></div>
+    <div class="photo ph5" data-id="photo5"><div class="photo-inner"><img src="https://cdn.jsdelivr.net/gh/le630/mylovedate@main/05_new.jpg" alt="照片5"></div></div>
+    <div class="photo ph6" data-id="photo6"><div class="photo-inner"><img src="https://cdn.jsdelivr.net/gh/le630/mylovedate@main/06_new.jpg" alt="照片6"></div></div>
+    <div class="photo ph7" data-id="photo7"><div class="photo-inner"><img src="https://cdn.jsdelivr.net/gh/le630/mylovedate@main/07_new.jpg" alt="照片7"></div></div>
+    <div class="photo ph8" data-id="photo8"><div class="photo-inner"><img src="https://cdn.jsdelivr.net/gh/le630/mylovedate@main/08_new.jpg" alt="照片8"></div></div>
+    <div class="photo ph9" data-id="photo9"><div class="photo-inner"><img src="https://cdn.jsdelivr.net/gh/le630/mylovedate@main/09_new.jpg" alt="照片9"></div></div>
+    <div class="photo ph10" data-id="photo10"><div class="photo-inner"><img src="https://cdn.jsdelivr.net/gh/le630/mylovedate@main/10_new.jpg" alt="照片10"></div></div>
+    <div class="photo ph11" data-id="photo11"><div class="photo-inner"><img src="https://cdn.jsdelivr.net/gh/le630/mylovedate@main/11_new.jpg" alt="照片11"></div></div>
+    <div class="photo ph12" data-id="photo12"><div class="photo-inner"><img src="https://cdn.jsdelivr.net/gh/le630/mylovedate@main/12_new.jpg" alt="照片12"></div></div>
+    <div class="photo ph13" data-id="photo13"><div class="photo-inner"><img src="https://cdn.jsdelivr.net/gh/le630/mylovedate@main/13_new.jpg" alt="照片13"></div></div>
+    <div class="photo ph14" data-id="photo14"><div class="photo-inner"><img src="https://cdn.jsdelivr.net/gh/le630/mylovedate@main/14_new.jpg" alt="照片14"></div></div>
+    <div class="photo ph15" data-id="photo15"><div class="photo-inner"><img src="https://cdn.jsdelivr.net/gh/le630/mylovedate@main/15_new.jpg" alt="照片15"></div></div>
+    <div class="photo ph16" data-id="photo16"><div class="photo-inner"><img src="https://cdn.jsdelivr.net/gh/le630/mylovedate@main/16_new.jpg" alt="照片16"></div></div>
+    <div class="photo ph17" data-id="photo17"><div class="photo-inner"><img src="https://cdn.jsdelivr.net/gh/le630/mylovedate@main/17_new.jpg" alt="照片17"></div></div>
+    <div class="photo ph18" data-id="photo18"><div class="photo-inner"><img src="https://cdn.jsdelivr.net/gh/le630/mylovedate@main/18_new.jpg" alt="照片18"></div></div>
+    <div class="photo ph19" data-id="photo19"><div class="photo-inner"><img src="https://cdn.jsdelivr.net/gh/le630/mylovedate@main/19_new.jpg" alt="照片19"></div></div>
+    <div class="photo ph20" data-id="photo20"><div class="photo-inner"><img src="https://cdn.jsdelivr.net/gh/le630/mylovedate@main/20_new.jpg" alt="照片20"></div></div>
+  </div>
+
+  <div class="lightbox" id="lightbox">
+    <img src="" alt="大图">
+  </div>
+
+  <script>
+    (function() {
+      const photos = document.querySelectorAll('.photo');
+      const lightbox = document.getElementById('lightbox');
+      const lightboxImg = lightbox.querySelector('img');
+      const wall = document.getElementById('wall');
+
+      // 工具函数：获取当前墙体的尺寸
+      function getWallBounds() {
+        return {
+          width: wall.clientWidth,
+          height: wall.clientHeight
+        };
+      }
+
+      // 保存位置到localStorage
+      function savePosition(photo) {
+        localStorage.setItem(photo.dataset.id, JSON.stringify({
+          x: parseFloat(photo.style.left) || 0,
+          y: parseFloat(photo.style.top) || 0
+        }));
+      }
+
+      // 设置随机位置
+      function setRandomPosition(photo) {
+        const bounds = getWallBounds();
+        const maxLeft = Math.max(0, bounds.width - photo.offsetWidth);
+        const maxTop = Math.max(0, bounds.height - photo.offsetHeight);
+        photo.style.left = Math.random() * maxLeft + 'px';
+        photo.style.top = Math.random() * maxTop + 'px';
+      }
+
+      // 1. 加载保存的位置，若无则随机放置
+      photos.forEach(photo => {
+        const saved = localStorage.getItem(photo.dataset.id);
+        if (saved) {
+          try {
+            const { x, y } = JSON.parse(saved);
+            const bounds = getWallBounds();
+            const maxX = Math.max(0, bounds.width - photo.offsetWidth);
+            const maxY = Math.max(0, bounds.height - photo.offsetHeight);
+            photo.style.left = Math.min(Math.max(x, 0), maxX) + 'px';
+            photo.style.top = Math.min(Math.max(y, 0), maxY) + 'px';
+          } catch (e) {
+            setRandomPosition(photo);
+          }
+        } else {
+          setRandomPosition(photo);
+        }
+      });
+
+      // 窗口大小改变时调整位置
+      window.addEventListener('resize', () => {
+        photos.forEach(photo => {
+          const bounds = getWallBounds();
+          const currentLeft = parseFloat(photo.style.left) || 0;
+          const currentTop = parseFloat(photo.style.top) || 0;
+          const maxX = Math.max(0, bounds.width - photo.offsetWidth);
+          const maxY = Math.max(0, bounds.height - photo.offsetHeight);
+          
+          if (currentLeft > maxX) photo.style.left = maxX + 'px';
+          if (currentTop > maxY) photo.style.top = maxY + 'px';
+          if (currentLeft < 0) photo.style.left = '0px';
+          if (currentTop < 0) photo.style.top = '0px';
+          
+          savePosition(photo);
+        });
+      });
+
+      // 2. 依次显示照片（动画现在由CSS的.visible类完美驱动）
+      function revealPhotosSequentially() {
+        photos.forEach((photo, index) => {
+          setTimeout(() => {
+            photo.classList.add('visible');
+          }, index * 300);
+        });
+      }
+
+      // 页面加载完成后开始
+      window.addEventListener('load', () => {
+        // 边界检查
+        photos.forEach(photo => {
+          const bounds = getWallBounds();
+          const left = parseFloat(photo.style.left) || 0;
+          const top = parseFloat(photo.style.top) || 0;
+          const maxX = Math.max(0, bounds.width - photo.offsetWidth);
+          const maxY = Math.max(0, bounds.height - photo.offsetHeight);
+          
+          let adjusted = false;
+          if (left > maxX) { photo.style.left = maxX + 'px'; adjusted = true; }
+          if (top > maxY) { photo.style.top = maxY + 'px'; adjusted = true; }
+          if (left < 0) { photo.style.left = '0px'; adjusted = true; }
+          if (top < 0) { photo.style.top = '0px'; adjusted = true; }
+          
+          if (adjusted) savePosition(photo);
+        });
+
+        revealPhotosSequentially();
+      });
+
+      // 3. 拖拽与点击逻辑（完全保留原有功能）
+      photos.forEach(photo => {
+        let isDragging = false;
+        let startX, startY;
+        let offsetX, offsetY;
+        let hasMoved = false;
+
+        function handleMove(clientX, clientY) {
+          if (!isDragging) return;
+          
+          const dx = clientX - startX;
+          const dy = clientY - startY;
+          
+          if (!hasMoved && (Math.abs(dx) > 3 || Math.abs(dy) > 3)) {
+            hasMoved = true;
+          }
+          
+          if (hasMoved) {
+            const newLeft = clientX - offsetX;
+            const newTop = clientY - offsetY;
+            
+            const bounds = getWallBounds();
+            const maxLeft = Math.max(0, bounds.width - photo.offsetWidth);
+            const maxTop = Math.max(0, bounds.height - photo.offsetHeight);
+            
+            photo.style.left = Math.min(Math.max(newLeft, 0), maxLeft) + 'px';
+            photo.style.top = Math.min(Math.max(newTop, 0), maxTop) + 'px';
+          }
+        }
+
+        function endDrag() {
+          if (isDragging) {
+            isDragging = false;
+            photo.style.cursor = 'grab';
+            photo.style.zIndex = 1;
+            
+            if (hasMoved) {
+              savePosition(photo);
+            }
+            
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', onMouseUp);
+            document.removeEventListener('touchmove', onTouchMove, { passive: false });
+            document.removeEventListener('touchend', onTouchEnd);
+            document.removeEventListener('touchcancel', onTouchCancel);
+          }
+        }
+
+        function onMouseDown(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          
+          startX = e.clientX;
+          startY = e.clientY;
+          offsetX = e.clientX - photo.offsetLeft;
+          offsetY = e.clientY - photo.offsetTop;
+          
+          isDragging = true;
+          hasMoved = false;
+          photo.style.cursor = 'grabbing';
+          photo.style.zIndex = 100;
+          
+          document.addEventListener('mousemove', onMouseMove);
+          document.addEventListener('mouseup', onMouseUp);
+        }
+
+        function onMouseMove(e) {
+          if (!isDragging) return;
+          e.preventDefault();
+          handleMove(e.clientX, e.clientY);
+        }
+
+        function onMouseUp(e) {
+          if (!isDragging) return;
+          
+          if (!hasMoved) {
+            const imgElement = photo.querySelector('img');
+            if (imgElement && imgElement.src) {
+              lightboxImg.src = imgElement.src;
+              lightbox.classList.add('active');
+            }
+          }
+          
+          endDrag();
+        }
+
+        function onTouchStart(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          
+          const touch = e.touches[0];
+          if (!touch) return;
+          
+          startX = touch.clientX;
+          startY = touch.clientY;
+          offsetX = touch.clientX - photo.offsetLeft;
+          offsetY = touch.clientY - photo.offsetTop;
+          
+          isDragging = true;
+          hasMoved = false;
+          photo.style.cursor = 'grabbing';
+          photo.style.zIndex = 100;
+          
+          document.addEventListener('touchmove', onTouchMove, { passive: false });
+          document.addEventListener('touchend', onTouchEnd);
+          document.addEventListener('touchcancel', onTouchCancel);
+        }
+
+        function onTouchMove(e) {
+          if (!isDragging) return;
+          e.preventDefault();
+          
+          const touch = e.touches[0];
+          if (!touch) return;
+          
+          handleMove(touch.clientX, touch.clientY);
+        }
+
+        function onTouchEnd(e) {
+          if (!isDragging) return;
+          e.preventDefault();
+          
+          if (!hasMoved) {
+            const imgElement = photo.querySelector('img');
+            if (imgElement && imgElement.src) {
+              lightboxImg.src = imgElement.src;
+              lightbox.classList.add('active');
+            }
+          }
+          
+          endDrag();
+        }
+
+        function onTouchCancel(e) {
+          endDrag();
+        }
+
+        photo.addEventListener('mousedown', onMouseDown);
+        photo.addEventListener('touchstart', onTouchStart, { passive: false });
+        photo.addEventListener('dragstart', (e) => e.preventDefault());
+      });
+
+      // 灯箱关闭
+      lightbox.addEventListener('click', () => {
+        lightbox.classList.remove('active');
+      });
+
+      lightbox.addEventListener('touchstart', (e) => {
+        lightbox.classList.remove('active');
+      });
+
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && lightbox.classList.contains('active')) {
+          lightbox.classList.remove('active');
+        }
+      });
+
+    })();
+  </script>
+</body>
+</html>
